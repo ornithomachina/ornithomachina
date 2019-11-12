@@ -1,0 +1,6 @@
+config.py
+newspaper/
+.ipynb_checkpoints
+.idea
+.DS_Store
+__pycache__/config.cpython-36.pyc
