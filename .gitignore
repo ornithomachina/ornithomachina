@@ -4,3 +4,7 @@ newspaper/
 .idea
 .DS_Store
 __pycache__/config.cpython-36.pyc
+body_vectorizer.pickle
+model.pickle
+model_object.pickle
+title_vectorizer.pickle

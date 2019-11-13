@@ -36,6 +36,23 @@ def getResponse(prediction):
 
     return response
 
+class Engager:
+    test_group = []
+    control_group = []
+    toggle = True
+    def engagementTest(status):
+        # Hacky way to split into control and test groups
+        if toggle is True:
+            print('GOING INTO CONTROL')
+            control_group.append(status)
+            toggle = not toggle
+            return False
+        else:
+            print('GOING INTO TEST')
+            test_group.append(status)
+            toggle = not toggle
+            return True
+
 
 # Override tweepy.StreamListener to add logic to on_status
 class MyStreamListener(tweepy.StreamListener):
@@ -46,7 +63,6 @@ class MyStreamListener(tweepy.StreamListener):
 
         # Check if this tweet is original and in english: not quoting anyone, not replying to a tweet, not a retweet, and lang param is english
         if ('quoted_status_id' not in result_dict) and (status.in_reply_to_status_id is None) and ('RT @' not in status.text) and (result_dict['lang'] == 'en'):
-            #print(result_dict)
             try:
 
                 entities = result_dict['entities']
@@ -56,7 +72,7 @@ class MyStreamListener(tweepy.StreamListener):
                 #print(urls)
                 expanded_url = urls[0]['expanded_url']
                 if 'twitter.com' not in expanded_url:
-
+                    #print(result_dict)
                     article = Article(url=expanded_url)
                     article_title = 'NO TITLE YET'
                     article_text = 'NO TEXT YET'
@@ -119,8 +135,11 @@ class MyStreamListener(tweepy.StreamListener):
                             print(log_prob)
                             print('\n')
 
-                            print('RESPONSE: \n')
-                            print(getResponse(test_proba[0][0]))
+                            if(engagementTest(status)):
+                                print('RESPONSE: \n')
+                                response = test_proba[0][0]
+                                response = '{:,.2%}'.format(response)
+                                print(getResponse(response))
 
 
                     except Exception as e:
@@ -131,10 +150,18 @@ class MyStreamListener(tweepy.StreamListener):
                 print(e)
                 print('no url')
 
+    '''
+    def on_data(self, raw_data):
+        return
+    '''
+
 
 # Creating stream object, with the api object auth attribute and the streamListener instance as parameters
 myStreamListener = MyStreamListener()
 myStream = tweepy.Stream(auth = api.auth, listener=myStreamListener)
+
+# Create engagement object for later analysis
+myEngager = Engager()
 
 # For some reason, this retweet filtering doesn't seem to work as expected
 print(myStream.filter(track=['ukraine', 'trump', 'pelosi', 'filter:links', '-filter:retweets']))
