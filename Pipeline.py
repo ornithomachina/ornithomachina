@@ -30,27 +30,38 @@ def prefix(string, prefix):
     result.append(pref_str)
     return result
 
-def getResponse(prediction):
-    response = f"Our model predicts that there is a {prediction} chance that this story is false, based on the characteristics of the article text. " \
-               f"\nWe encourage checking other sources!"
+def getResponse(username, prediction):
+    response = f"@{username} Our model predicts that there is a {prediction} chance that there are elements of this story that are " \
+               f"false, based on the characteristics of the article text. " \
+               f"\n\nWe encourage checking other sources!"
 
     return response
 
+def reply(response, id):
+    api.update_status(response, id)
+
+
 class Engager:
-    test_group = []
-    control_group = []
-    toggle = True
-    def engagementTest(status):
+    def __init__(self):
+        self.toggle = False
+
+    def engagementTest(self, id):
         # Hacky way to split into control and test groups
-        if toggle is True:
+        if self.toggle is True:
             print('GOING INTO CONTROL')
-            control_group.append(status)
-            toggle = not toggle
+            with open('control_group.txt', 'a') as f:
+                f.write(str(id))
+                f.write('\n')
+            f.close()
+            self.toggle = not self.toggle
             return False
         else:
             print('GOING INTO TEST')
-            test_group.append(status)
-            toggle = not toggle
+            with open('test_group.txt', 'a') as f:
+                f.write(str(id))
+                f.write('\n')
+            f.close()
+            self.toggle = not self.toggle
             return True
 
 
@@ -64,15 +75,20 @@ class MyStreamListener(tweepy.StreamListener):
         # Check if this tweet is original and in english: not quoting anyone, not replying to a tweet, not a retweet, and lang param is english
         if ('quoted_status_id' not in result_dict) and (status.in_reply_to_status_id is None) and ('RT @' not in status.text) and (result_dict['lang'] == 'en'):
             try:
+                user = result_dict['user']
+                username = user['screen_name']
+                if hasattr(result_dict, 'extended_tweet'):
+                    extended_tweet = result_dict['extended_tweet']
+                    entities = extended_tweet['entities']
+                    urls = entities['urls']
+                    expanded_url = urls[0]['expanded_url']
+                else:
+                    entities = result_dict['entities']
+                    urls = entities['urls']
+                    expanded_url = urls[0]['expanded_url']
 
-                entities = result_dict['entities']
-                #print(entities)
-                #print(entities.keys())
-                urls = entities['urls']
-                #print(urls)
-                expanded_url = urls[0]['expanded_url']
-                if 'twitter.com' not in expanded_url:
-                    #print(result_dict)
+                if 'twitter.com' not in expanded_url and 'facebook.com' not in expanded_url:
+
                     article = Article(url=expanded_url)
                     article_title = 'NO TITLE YET'
                     article_text = 'NO TEXT YET'
@@ -114,32 +130,39 @@ class MyStreamListener(tweepy.StreamListener):
                             print('TEXT: ' + article_text + '\n')
 
                             print('====ANALYSIS====\n')
+                            print('TITLE VECTOR:   ')
                             print(article_title_vect)
-                            print(article_title_vect.shape)
+                            print('\n')
+                            print('TEXT VECTOR:   ')
                             print(article_text_vect)
-                            print(article_text_vect.shape)
+                            print('\n')
 
-                            print('FULL: ')
+                            print('FULL VECTOR: ')
                             print(test)
-
-                            print('PREDICTION: ')
-                            print(test_pred)
                             print('\n')
 
                             print('LABEL PROBABILITIES: ')
                             print(test_proba)
-                            print(test_proba[0])
                             print('\n')
 
                             print('LOG PROBABILITY: ')
                             print(log_prob)
                             print('\n')
 
-                            if(engagementTest(status)):
+                            print('PREDICTION: ')
+                            print(test_pred)
+                            print('\n')
+
+
+                            if myEngager.engagementTest(status.id):
                                 print('RESPONSE: \n')
                                 response = test_proba[0][0]
                                 response = '{:,.2%}'.format(response)
-                                print(getResponse(response))
+                                response = getResponse(username, response)
+                                print(response)
+
+                                # Now we need to actually respond!
+                                reply(response, status.id)
 
 
                     except Exception as e:
@@ -164,4 +187,4 @@ myStream = tweepy.Stream(auth = api.auth, listener=myStreamListener)
 myEngager = Engager()
 
 # For some reason, this retweet filtering doesn't seem to work as expected
-print(myStream.filter(track=['ukraine', 'trump', 'pelosi', 'filter:links', '-filter:retweets']))
+print(myStream.filter(track=['ukraine', 'trump', 'pelosi', 'impeach', 'impeachment', 'filter:links', '-filter:retweets']))

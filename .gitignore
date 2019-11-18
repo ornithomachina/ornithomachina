@@ -8,3 +8,5 @@ body_vectorizer.pickle
 model.pickle
 model_object.pickle
 title_vectorizer.pickle
+/test_group.txt
+/control_group.txt
